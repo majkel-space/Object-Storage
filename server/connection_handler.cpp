@@ -1,5 +1,6 @@
 #include <boost/bind/bind.hpp>
 #include "connection_handler.hpp"
+#include "protocols/ProtocolDetection.hpp"
 
 using tcpip = boost::asio::ip::tcp;
 
@@ -32,16 +33,22 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
 {
     if (!error)
     {
-        for (const auto& c: data_)
-            std::cout << c; //it is printing emtpy bytes up to data array capacity
-        std::cout << std::endl;
+        std::string msg(data_.data(), bytes_transferred);
+        const Protocol protocol = DetectProtocol(msg);
+        if (protocol == Protocol::Http)
+            std::cout << "HTTTP msg " << msg << std::endl;
+        else if (protocol == Protocol::Resp)
+            std::cout << "RESP msg " << msg << std::endl;
+        else
+            std::cout <<"Protocol Unknown\n";
+
+        DoWrite();
     }
     else
     {
         std::cerr << "error: " << error.message() << std::endl;
         socket_.close();
     }
-    DoWrite();
 }
 
 void ConnectionHandler::HandleWrite(const boost::system::error_code& error, size_t bytes_transferred)
@@ -49,11 +56,11 @@ void ConnectionHandler::HandleWrite(const boost::system::error_code& error, size
     if (!error)
     {
         std::cout << "Server sent Hello message!"<< std::endl;
+        DoRead();
     }
     else
     {
         std::cerr << "error: " << error.message() << std::endl;
         socket_.close();
     }
-    DoRead();
 }

@@ -1,5 +1,7 @@
 #include "client.hpp"
 
+
+
 void Client::Connect()
 {
     socket_.connect(tcpip::endpoint(boost::asio::ip::address::from_string("127.0.0.1"), 1234 ));
@@ -13,7 +15,12 @@ void Client::SendMessage()
 
 void Client::GenerateMessage()
 {
-    const char msg[] = "Hello from Client!\n";
+    const char msg[] =
+    "GET / HTTP/1.1\r\n"
+    "Host: localhost\r\n"
+    "User-Agent: TestClient\r\n"
+    "Accept: */*\r\n"
+    "\r\n";
 
     boost::asio::write(socket_, boost::asio::buffer(msg), error_ );
     if(!error_ )
@@ -23,6 +30,7 @@ void Client::GenerateMessage()
     else
     {
         std::cout << "send failed: " << error_.message() << std::endl;
+        return;
     }
 }
 

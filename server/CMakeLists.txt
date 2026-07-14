@@ -8,6 +8,7 @@ add_executable(server.o
     connection_handler.cpp
     server.cpp
     main_server.cpp
+    protocols/ProtocolDetection.hpp
 )
 
 target_include_directories(server.o PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
