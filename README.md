@@ -7,7 +7,7 @@ Program is build with CMake file system, to run it:
 1. mkdir build
 2. cd build
 3. cmake ..
-4. make
+4. cmake --build .
 5. ./server/server.o
 6. .client/client.o (in another terminal window)
     alternatively instead runing server:
@@ -16,7 +16,11 @@ Program is build with CMake file system, to run it:
     nc 127.0.0.1 1234
     GET / HTTP/1.1
     Host: localhost
-    
+
+## TO TEST
+
+Complete steps up to 5 from TO RUN chapter
+ctest --verbose
 
 Program has implemented SIGINT interuption.
 To stop hit 'Ctrl+C' in both terminal windows.

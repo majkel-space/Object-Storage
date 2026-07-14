@@ -3,14 +3,32 @@ cmake_minimum_required(VERSION 3.10)
 project(Server)
 
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(Threads REQUIRED)
 
-add_executable(server.o
+add_library(object_storage
     connection_handler.cpp
     server.cpp
-    main_server.cpp
-    protocols/ProtocolDetection.hpp
 )
 
-target_include_directories(server.o PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(server.o PRIVATE -lboost_system -pthread)
-target_link_libraries(server.o PRIVATE Boost::system)
+target_include_directories(
+    object_storage
+    PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(
+    object_storage
+    PUBLIC
+    Boost::system
+    Threads::Threads
+)
+
+add_executable(server
+    main_server.cpp
+)
+
+target_link_libraries(
+    server
+    PRIVATE
+    object_storage
+)
