@@ -2,6 +2,8 @@
 #include <boost/asio.hpp>
 #include <iostream>
 #include <memory>
+#include "protocols/HttpParser.hpp"
+#include "protocols/RespParser.hpp"
 
 const int max_length = 1024 ;
 
@@ -23,4 +25,5 @@ class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler>
     tcpip::socket socket_;
     const char message_[max_length] = "Hello From Server!\n";
     std::array<char, 1024> data_;
+    std::unique_ptr<IParser> parser_{nullptr};
 };

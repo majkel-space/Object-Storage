@@ -7,6 +7,8 @@ find_package(Threads REQUIRED)
 
 add_library(object_storage
     connection_handler.cpp
+    protocols/HttpParser.cpp
+    protocols/RespParser.cpp
     server.cpp
 )
 

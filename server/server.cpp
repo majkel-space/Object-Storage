@@ -25,10 +25,12 @@ void Server::StartAccept()
         {
             if (!ec)
             {
+                //separate connetion handler for each conecting client
                 auto connection =
                     std::make_shared<ConnectionHandler>(std::move(*socket));
                 connection->Start();
             }
-            StartAccept();
+            if (!stop_)
+                StartAccept();
         });
 }

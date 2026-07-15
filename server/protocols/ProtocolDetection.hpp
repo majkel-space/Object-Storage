@@ -27,6 +27,5 @@ Protocol DetectProtocol(const std::string_view msg)
         msg.starts_with("DELETE ") or
         msg.starts_with("HEAD "))
             return Protocol::Http;
-
     return Protocol::Unknown;
 }

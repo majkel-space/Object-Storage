@@ -1,6 +1,15 @@
+#include <thread>
 #include "client.hpp"
 
-
+Client::Client (boost::asio::io_context& io, const int id) : socket_(io), id_(id)
+{
+    if (id_ == 1 || id_ == 3)
+        msg_chunks_ = http_msg_chunks;
+    else if (id_ == 2 || id_ == 4)
+        msg_chunks_ = resp_msg_chunks;
+    else
+        msg_chunks_ = unknown_msg_chunks;
+}
 
 void Client::Connect()
 {
@@ -10,27 +19,25 @@ void Client::Connect()
 void Client::SendMessage()
 {
     GenerateMessage();
-    GetResponse();
+    // GetResponse();
 }
 
 void Client::GenerateMessage()
 {
-    const char msg[] =
-    "GET / HTTP/1.1\r\n"
-    "Host: localhost\r\n"
-    "User-Agent: TestClient\r\n"
-    "Accept: */*\r\n"
-    "\r\n";
-
-    boost::asio::write(socket_, boost::asio::buffer(msg), error_ );
-    if(!error_ )
+    for (const auto& chunk: msg_chunks_)
     {
-        std::cout << "Client sent hello message!" << std::endl;
-    }
-    else
-    {
-        std::cout << "send failed: " << error_.message() << std::endl;
-        return;
+        //blocking write, with larger data change to async_write, to not block
+        boost::asio::write(socket_, boost::asio::buffer(chunk), error_ );
+        if(!error_ )
+        {
+            std::cout << "Client " << id_ << " sent chunk: " << chunk << '\n';
+        }
+        else
+        {
+            std::cout << "Client " << id_ << " send failed: " << error_.message() << '\n';
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 

@@ -34,14 +34,23 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
     if (!error)
     {
         std::string msg(data_.data(), bytes_transferred);
-        const Protocol protocol = DetectProtocol(msg);
-        if (protocol == Protocol::Http)
-            std::cout << "HTTTP msg " << msg << std::endl;
-        else if (protocol == Protocol::Resp)
-            std::cout << "RESP msg " << msg << std::endl;
-        else
-            std::cout <<"Protocol Unknown\n";
+        if (!parser_)
+        {
+            const Protocol protocol = DetectProtocol(msg);
+            // std::cout << "Server recieved " << msg << " PROTOCOL " << (int)protocol << "\n";
+            switch (protocol)
+            {
+                case Protocol::Http:
+                    parser_ = std::make_unique<HttpParser>();
+                    break;
 
+                case Protocol::Resp:
+                    parser_ = std::make_unique<RespParser>();
+                    break;
+            }
+        }
+        if (parser_ != nullptr)
+            parser_->Parse(msg);
         DoWrite();
     }
     else
@@ -55,7 +64,6 @@ void ConnectionHandler::HandleWrite(const boost::system::error_code& error, size
 {
     if (!error)
     {
-        std::cout << "Server sent Hello message!"<< std::endl;
         DoRead();
     }
     else

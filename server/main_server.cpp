@@ -11,7 +11,6 @@ int main()
     signals.async_wait(
         [&](const boost::system::error_code&, int)
         {
-            std::cout << "Stopping server\n";
             server.StopServer();
             io_service.stop();
         });

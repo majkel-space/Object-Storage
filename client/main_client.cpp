@@ -17,7 +17,7 @@ int main()
     clients.reserve(NUMBER_OF_CLIENTS);
     for (auto it = 0U; it < NUMBER_OF_CLIENTS; ++it)
     {
-        auto client = std::make_shared<Client>(io_context);
+        auto client = std::make_shared<Client>(io_context, static_cast<int>(it + 1));
         client->Connect();
         clients.push_back(client);
     }
