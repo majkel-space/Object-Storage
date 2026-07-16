@@ -37,7 +37,6 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
         if (!parser_)
         {
             const Protocol protocol = DetectProtocol(msg);
-            // std::cout << "Server recieved " << msg << " PROTOCOL " << (int)protocol << "\n";
             switch (protocol)
             {
                 case Protocol::Http:
@@ -50,7 +49,20 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
             }
         }
         if (parser_ != nullptr)
-            parser_->Parse(msg);
+        {
+            auto status = parser_->GetParseStatus();
+            if (status != ParseStatus::Complete and status != ParseStatus::Error)
+                parser_->Parse(msg);
+            else if (status == ParseStatus::Complete) {
+                //TODO handle body
+                parser_.reset();
+            }
+            else if (status == ParseStatus::Error) {
+                //TODO close connection?
+                parser_.reset();
+            }
+
+        }
         DoWrite();
     }
     else

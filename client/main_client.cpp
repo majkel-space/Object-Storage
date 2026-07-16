@@ -22,15 +22,20 @@ int main()
         clients.push_back(client);
     }
 
+    // auto client = std::make_shared<Client>(io_context, static_cast<int>(1));
+    // client->Connect();
+
     boost::asio::steady_timer timer(io_context);
     std::function<void()> send_loop;
 
     send_loop = [&timer, &clients, &send_loop]()
+    // send_loop = [&timer, &client, &send_loop]()
     {
         for (auto& client : clients)
         {
             client->SendMessage();
         }
+        // client->SendMessage();
 
         timer.expires_after(std::chrono::seconds(1));
         timer.async_wait(

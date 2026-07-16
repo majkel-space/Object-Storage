@@ -10,15 +10,19 @@ namespace
         "Host: localhost\r\n",
         "User-Agent: TestClient\r\n",
         "Accept: */*\r\n",
-        "\r\n"
+        "Content-Length: 11\r\n",
+        "\r\n",
+        "Hello world"
     };
 
     const std::vector<std::string> resp_msg_chunks {
-        "*2\r\n",
+        "*3\r\n",
         "$3\r\n",
         "GET\r\n",
-        "$5\r\n",
-        "hello\r\n"
+        "$3\r\n",
+        "key\r\n",
+        "$11\r\n",
+        "Hello world\r\n"
     };
 
     const std::vector<std::string> unknown_msg_chunks {

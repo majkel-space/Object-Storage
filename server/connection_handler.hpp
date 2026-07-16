@@ -2,6 +2,7 @@
 #include <boost/asio.hpp>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include "protocols/HttpParser.hpp"
 #include "protocols/RespParser.hpp"
 

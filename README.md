@@ -44,4 +44,6 @@ Main in client creates io_service, connect it with SIGINT and in async_wait wait
 Construct 5 clients binded to the same io_sevice and pass them io_service to create a socket instance and connect to server (every with same port).
 In send method in main, start to send msgs and wait for response from server.
 
+## Protocol parsers
 
+There are 2 protocols HTTP and RESP, both classes responible for parsing
