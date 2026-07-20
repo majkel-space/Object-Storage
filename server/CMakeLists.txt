@@ -9,6 +9,8 @@ add_library(object_storage
     connection_handler.cpp
     protocols/HttpParser.cpp
     protocols/RespParser.cpp
+    storage/storage.cpp
+    storage/storage_manager.cpp
     server.cpp
 )
 

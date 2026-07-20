@@ -104,8 +104,9 @@ void RespParser::Parse(const std::string_view data)
                     state_ = State::ReadArrayHeader;
                     std::cout << request_;
                     std::cout << "###########\n";
-                    std::cout << "RESP buffer\n";
-                    std::cout << "###########\n";
+                    //TODO check if exist to not get at exception
+                    request_.path = request_.arguments.at(0);
+                    request_.object = request_.arguments.at(1);
                     parse_status_ = ParseStatus::Complete;
                     return;
                 }

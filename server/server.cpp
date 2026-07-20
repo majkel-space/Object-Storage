@@ -5,6 +5,7 @@ using tcpip = boost::asio::ip::tcp;
 
 Server::Server(boost::asio::io_service& io_service) : acceptor_(io_service, tcpip::endpoint(tcpip::v4(), 1234))
 {
+    storage_manager_ = std::make_shared<StorageManager>();
     StartAccept();
 }
 
@@ -26,8 +27,8 @@ void Server::StartAccept()
             if (!ec)
             {
                 //separate connetion handler for each conecting client
-                auto connection =
-                    std::make_shared<ConnectionHandler>(std::move(*socket));
+                auto connection = std::make_shared<ConnectionHandler>(std::move(*socket), storage_manager_);
+                //TODO pass storageManager instance
                 connection->Start();
             }
             if (!stop_)

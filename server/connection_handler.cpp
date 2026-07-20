@@ -1,6 +1,7 @@
 #include <boost/bind/bind.hpp>
 #include "connection_handler.hpp"
 #include "protocols/ProtocolDetection.hpp"
+#include "storage/storage.hpp"
 
 using tcpip = boost::asio::ip::tcp;
 
@@ -54,8 +55,8 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
             if (status != ParseStatus::Complete and status != ParseStatus::Error)
                 parser_->Parse(msg);
             else if (status == ParseStatus::Complete) {
-                //TODO handle body
-                parser_.reset();
+                storage_manager_->Execute(parser_->GetMethod(), parser_->GetPath());
+                // parser_.reset(); //TODO reset only if full content will be send
             }
             else if (status == ParseStatus::Error) {
                 //TODO close connection?

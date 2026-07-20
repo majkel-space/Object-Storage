@@ -14,7 +14,6 @@ class HttpParser : public IParser
         std::string method;
         std::string target;
         std::string version;
-        std::string path;
         std::unordered_map<std::string, std::string> headers;
         std::size_t content_length{0};
         std::string body;
@@ -25,7 +24,6 @@ class HttpParser : public IParser
               << "  Method: " << request.method << "\n"
               << "  Target: " << request.target << "\n"
               << "  Version: " << request.version << "\n"
-              << "  Path: " << request.path << "\n"
               << "  Content-Length: " << request.content_length << "\n"
               << "  Headers:\n";
 
@@ -44,7 +42,8 @@ class HttpParser : public IParser
     ~HttpParser() = default;
 
     void Parse(const std::string_view) override;
-    std::string_view GetPath() const override { return request_.path; }
+    std::string GetMethod() const override { return request_.method; }
+    std::string GetPath() const override { return request_.target; }
 
   private:
     bool CheckIfHeaderNotComplete();

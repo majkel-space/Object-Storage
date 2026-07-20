@@ -44,7 +44,8 @@ class RespParser : public IParser
     ~RespParser() = default;
 
     void Parse(const std::string_view) override;
-    std::string_view GetPath() const override { return request_.path; }
+    std::string GetMethod() const override { return request_.method; }
+    std::string GetPath() const override { return request_.path; }
 
   private:
     bool ReadLine(std::string& line);

@@ -19,10 +19,10 @@ namespace
         "*3\r\n",
         "$3\r\n",
         "GET\r\n",
-        "$3\r\n",
-        "key\r\n",
+        "$9\r\n",
+        "resp_path\r\n",
         "$11\r\n",
-        "Hello world\r\n"
+        "Resp object\r\n"
     };
 
     const std::vector<std::string> unknown_msg_chunks {

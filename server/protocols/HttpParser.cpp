@@ -12,10 +12,10 @@ void HttpParser::Parse(const std::string_view data)
         return;
     }
     CreateHttpRequest();
-    std::cout << request_;
-    std::cout << "###########\n";
-    std::cout << "BUFFER\n" << buffer_ << std::endl;
-    std::cout << "###########\n";
+    // std::cout << request_;
+    // std::cout << "###########\n";
+    // std::cout << "BUFFER\n" << buffer_ << std::endl;
+    // std::cout << "###########\n";
     ClearRequest(); // TODO do not clear request before body stored
     buffer_.clear(); // TODO do not clear request before body stored
     parse_status_ = ParseStatus::Complete;
@@ -99,7 +99,6 @@ void HttpParser::ClearRequest()
     request_.method.clear();
     request_.target.clear();
     request_.version.clear();
-    request_.path.clear();
     request_.headers.clear();
     request_.content_length = 0;
     request_.body.clear();

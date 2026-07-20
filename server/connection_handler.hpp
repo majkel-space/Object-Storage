@@ -1,10 +1,9 @@
 #include <array>
 #include <boost/asio.hpp>
-#include <iostream>
 #include <memory>
-#include <optional>
 #include "protocols/HttpParser.hpp"
 #include "protocols/RespParser.hpp"
+#include "storage/storage_manager.hpp"
 
 const int max_length = 1024 ;
 
@@ -13,7 +12,8 @@ class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler>
   public:
     using tcpip = boost::asio::ip::tcp;
 
-    ConnectionHandler(boost::asio::ip::tcp::socket socket): socket_(std::move(socket)) {}
+    ConnectionHandler(boost::asio::ip::tcp::socket socket, std::shared_ptr<StorageManager> storage_manager)
+      : socket_(std::move(socket)),  storage_manager_(std::move(storage_manager)) {}
 
     void Start();
 
@@ -25,6 +25,7 @@ class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler>
 
     tcpip::socket socket_;
     const char message_[max_length] = "Hello From Server!\n";
-    std::array<char, 1024> data_;
+    std::array<char, 1024> data_; //no new allocation, every read use the same memory
     std::unique_ptr<IParser> parser_{nullptr};
+    std::shared_ptr<StorageManager> storage_manager_;
 };

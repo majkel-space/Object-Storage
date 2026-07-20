@@ -15,4 +15,5 @@ class Server
 
     tcpip::acceptor acceptor_;
     bool stop_ = false;
+    std::shared_ptr<StorageManager> storage_manager_;
 };
