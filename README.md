@@ -8,8 +8,8 @@ Program is build with CMake file system, to run it:
 2. cd build
 3. cmake ..
 4. cmake --build .
-5. ./server/server.o
-6. .client/client.o (in another terminal window)
+5. ./server/server
+6. .client/client (in another terminal window)
     alternatively instead runing server:
     curl http://127.0.0.1:1234/
     or:

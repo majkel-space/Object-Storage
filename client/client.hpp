@@ -5,23 +5,24 @@
 namespace
 {
     const std::vector<std::string> http_msg_chunks {
-        "GET / HT",
+        "PUT aaa HT",
         "TP/1.1\r\n",
         "Host: localhost\r\n",
         "User-Agent: TestClient\r\n",
         "Accept: */*\r\n",
-        "Content-Length: 11\r\n",
-        "\r\n",
-        "Hello world"
+        "Content-Length: 17\r\n",
+        "\r\n+++",
+        "Hello world",
+        "!!!"
     };
 
     const std::vector<std::string> resp_msg_chunks {
         "*3\r\n",
-        "$3\r\n",
-        "GET\r\n",
-        "$9\r\n",
-        "resp_path\r\n",
-        "$11\r\n",
+        "$5\r\n",
+        "SETNX\r\n",
+        "$4\r\n",
+        "resp\r\n",
+        "$13\r\n",
         "Resp object\r\n"
     };
 

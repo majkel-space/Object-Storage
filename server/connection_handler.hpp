@@ -24,7 +24,6 @@ class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler>
     void HandleWrite(const boost::system::error_code&, size_t);
 
     tcpip::socket socket_;
-    const char message_[max_length] = "Hello From Server!\n";
     std::array<char, 1024> data_; //no new allocation, every read use the same memory
     std::unique_ptr<IParser> parser_{nullptr};
     std::shared_ptr<StorageManager> storage_manager_;

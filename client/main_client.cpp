@@ -13,39 +13,40 @@ int main()
             io_context.stop();
         });
 
-    std::vector<std::shared_ptr<Client>> clients;
-    clients.reserve(NUMBER_OF_CLIENTS);
-    for (auto it = 0U; it < NUMBER_OF_CLIENTS; ++it)
-    {
-        auto client = std::make_shared<Client>(io_context, static_cast<int>(it + 1));
-        client->Connect();
-        clients.push_back(client);
-    }
+    // std::vector<std::shared_ptr<Client>> clients;
+    // clients.reserve(NUMBER_OF_CLIENTS);
+    // for (auto it = 0U; it < NUMBER_OF_CLIENTS; ++it)
+    // {
+    //     auto client = std::make_shared<Client>(io_context, static_cast<int>(it + 1));
+    //     client->Connect();
+    //     clients.push_back(client);
+    // }
 
-    // auto client = std::make_shared<Client>(io_context, static_cast<int>(2));
-    // client->Connect();
+    auto client = std::make_shared<Client>(io_context, static_cast<int>(1));
+    client->Connect();
 
     boost::asio::steady_timer timer(io_context);
     std::function<void()> send_loop;
 
-    send_loop = [&timer, &clients, &send_loop]()
+    // send_loop = [&timer, &clients, &send_loop]()
     // send_loop = [&timer, &client, &send_loop]()
-    {
-        for (auto& client : clients)
-        {
-            client->SendMessage();
-        }
-        // client->SendMessage();
+    // {
+    //     // for (auto& client : clients)
+    //     // {
+    //     //     client->SendMessage();
+    //     // }
+    //     client->SendMessage();
 
-        timer.expires_after(std::chrono::seconds(1));
-        timer.async_wait(
-            [&](const boost::system::error_code&)
-            {
-                send_loop();
-            });
-    };
+    //     timer.expires_after(std::chrono::seconds(1));
+    //     timer.async_wait(
+    //         [&](const boost::system::error_code&)
+    //         {
+    //             send_loop();
+    //         });
+    // };
 
-    send_loop();
+    // send_loop();
+    client->SendMessage();
     io_context.run();
 
     return 0;

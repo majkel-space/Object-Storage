@@ -1,4 +1,5 @@
 #include <boost/bind/bind.hpp>
+#include <span>
 #include "connection_handler.hpp"
 #include "protocols/ProtocolDetection.hpp"
 #include "storage/storage.hpp"
@@ -22,6 +23,7 @@ void ConnectionHandler::DoRead()
 
 void ConnectionHandler::DoWrite()
 {
+    std::string message_ = "DoWrite\n";
     socket_.async_write_some(
         boost::asio::buffer(message_),
         boost::bind(&ConnectionHandler::HandleWrite,
@@ -34,7 +36,7 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
 {
     if (!error)
     {
-        std::string msg(data_.data(), bytes_transferred);
+        std::string_view msg(data_.data(), bytes_transferred);
         if (!parser_)
         {
             const Protocol protocol = DetectProtocol(msg);
@@ -52,17 +54,28 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
         if (parser_ != nullptr)
         {
             auto status = parser_->GetParseStatus();
-            if (status != ParseStatus::Complete and status != ParseStatus::Error)
+            if (status != ParseStatus::Complete and status != ParseStatus::Error) {
                 parser_->Parse(msg);
-            else if (status == ParseStatus::Complete) {
-                storage_manager_->Execute(parser_->GetMethod(), parser_->GetPath());
+                status = parser_->GetParseStatus();
+            }
+            if (status == ParseStatus::Complete) {
+                Request& request = parser_->GetRequest();
+                StorageStatus storage_status = storage_manager_->GetStatus();
+                if (storage_status == StorageStatus::NotStarted ||
+                    storage_status == StorageStatus::Complete) {
+                        storage_manager_->Execute(request);
+                        // storage_manager_->Append(request, std::span<const char>(data_.data(), bytes_transferred));
+                    }
+                //TODO check error status from StorageManager
+                else if (storage_status == StorageStatus::Receiving){
+                    storage_manager_->Append(request, std::span<const char>(data_.data(), bytes_transferred));
+                }
                 // parser_.reset(); //TODO reset only if full content will be send
             }
             else if (status == ParseStatus::Error) {
                 //TODO close connection?
                 parser_.reset();
             }
-
         }
         DoWrite();
     }

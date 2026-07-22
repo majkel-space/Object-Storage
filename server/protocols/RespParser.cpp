@@ -16,7 +16,6 @@ void RespParser::Parse(const std::string_view data)
                     parse_status_ = ParseStatus::InProgress;
                 if (line.empty() || line[0] != '*')
                 {
-
                     parse_status_ = ParseStatus::Error;
                     return;
                 }
@@ -33,7 +32,7 @@ void RespParser::Parse(const std::string_view data)
                 }
 
                 remaining_arrays_ = parsed;
-                request_.arguments.clear();
+                // request_.arguments.clear();
                 ClearRequest();
                 if (remaining_arrays_ == 0)
                 {
@@ -71,6 +70,21 @@ void RespParser::Parse(const std::string_view data)
                     return;
                 }
                 request_.content_length = parsed;
+
+                if (remaining_arrays_ == 1)
+                {
+                    buffer_.erase(0, position_);
+                    position_ = 0;
+                    // Take only up to content_length bytes — strips \r\n framing
+                    size_t available = std::min(buffer_.size(), request_.content_length);
+                    request_.body.assign(buffer_.begin(), buffer_.begin() + available);
+                    buffer_.erase(0, available);
+                    // Discard trailing \r\n if already in buffer
+                    if (buffer_.size() >= 2 && buffer_[0] == '\r' && buffer_[1] == '\n')
+                        buffer_.erase(0, 2);
+                    parse_status_ = ParseStatus::Complete;
+                    return;
+                }
                 state_ = State::ReadBulkData;
                 break;
             }
@@ -81,36 +95,31 @@ void RespParser::Parse(const std::string_view data)
                     parse_status_ = ParseStatus::InProgress;
                     return;
                 }
-
                 if (request_.method.empty())
                     request_.method = buffer_.substr(position_, request_.content_length);
-                else
-                    request_.arguments.emplace_back(buffer_.substr(position_, request_.content_length));
-
-                    position_ += request_.content_length;
+                else if (request_.path.empty())
+                    request_.path = buffer_.substr(position_, request_.content_length);
+                else{
+                    std::string_view body_data(buffer_.data() + position_, request_.content_length);
+                    request_.body.insert(request_.body.end(), body_data.begin(), body_data.end());
+                }
+                    // request_.arguments.emplace_back(buffer_.substr(position_, request_.content_length));
+                position_ += request_.content_length;
                 if (buffer_.compare(position_, 2, "\r\n") != 0)
                 {
                     parse_status_ = ParseStatus::Error;
                     return;
                 }
-
                 position_ += 2;
                 --remaining_arrays_;
                 if (remaining_arrays_ == 0)
                 {
-                    // Remove only consumed message bytes.
-                    buffer_.erase(0, position_);
-                    position_ = 0;
                     state_ = State::ReadArrayHeader;
-                    std::cout << request_;
-                    std::cout << "###########\n";
-                    //TODO check if exist to not get at exception
-                    request_.path = request_.arguments.at(0);
-                    request_.object = request_.arguments.at(1);
+                    // std::cout << request_;
+                    // std::cout << "###########\n";
                     parse_status_ = ParseStatus::Complete;
                     return;
                 }
-
                 state_ = State::ReadBulkHeader;
                 break;
             }
@@ -133,7 +142,5 @@ void RespParser::ClearRequest()
 {
     request_.method.clear();
     request_.path.clear();
-    request_.object.clear();
-    request_.arguments.clear();
     request_.content_length = 0;
 }

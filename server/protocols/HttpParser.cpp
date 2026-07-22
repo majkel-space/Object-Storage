@@ -5,19 +5,13 @@
 
 void HttpParser::Parse(const std::string_view data)
 {
-    buffer_.append(data); //TODO after header complete client still sends body
+    buffer_.append(data);
     if (CheckIfHeaderNotComplete())
     {
         parse_status_ = ParseStatus::InProgress;
         return;
     }
     CreateHttpRequest();
-    // std::cout << request_;
-    // std::cout << "###########\n";
-    // std::cout << "BUFFER\n" << buffer_ << std::endl;
-    // std::cout << "###########\n";
-    ClearRequest(); // TODO do not clear request before body stored
-    buffer_.clear(); // TODO do not clear request before body stored
     parse_status_ = ParseStatus::Complete;
 }
 
@@ -42,7 +36,7 @@ void HttpParser::CreateHttpRequest()
     {
         std::istringstream iss(line);
         iss >> request_.method;
-        iss >> request_.target;
+        iss >> request_.path;
         iss >> request_.version;
     }
 
@@ -72,7 +66,8 @@ void HttpParser::CreateHttpRequest()
             if (!value.empty() && value.front() == ' ')
                 value.erase(0, 1);
 
-            request_.headers[name] = value;
+            // request_.headers[name] = value;
+            headers[name] = value;
             // Catch Content-Length only (no body consume)
             if (name == "Content-Length")
             {
@@ -89,17 +84,20 @@ void HttpParser::CreateHttpRequest()
         cursor = pos + 2;
     }
 
-    // Remove only start-line + headers.
-    // Body (if any) stays in buffer_.
     buffer_.erase(0, cursor);
+    request_.body = {std::make_move_iterator(buffer_.begin()), std::make_move_iterator(buffer_.end())};
+    // std::cout << "PARSER body ";
+    // for (const auto& it: request_.body)
+    //     std::cout << it;
+    // std::cout << std::endl;
+    buffer_.clear();
 }
 
 void HttpParser::ClearRequest()
 {
     request_.method.clear();
-    request_.target.clear();
+    request_.path.clear();
     request_.version.clear();
-    request_.headers.clear();
     request_.content_length = 0;
     request_.body.clear();
 }
