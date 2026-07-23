@@ -47,6 +47,7 @@ int main()
 
     // send_loop();
     client->SendMessage();
+    client->GetResponse();
     io_context.run();
 
     return 0;

@@ -19,7 +19,8 @@ enum class StorageStatus
 class Storage
 {
   public:
-    void Get(const std::string);
+    void Get(const std::string, StorageStatus&);
+    std::size_t GetChunk(const std::string&, std::span<char>, StorageStatus&);
     void Put(const std::string&, std::size_t&, std::span<const char>, StorageStatus&);
     void PutIfNonExist(const std::string&, std::size_t&, std::span<const char>, StorageStatus&);
     void List(const std::string) const;
@@ -36,9 +37,11 @@ class Storage
     void FinishComplete(StorageStatus&, const std::string_view);
     void Write(const std::string&, std::size_t&, std::span<const char>, StorageStatus&, OpenMode);
 
-    std::string path_ = "../output/";
     std::ofstream file_;
-    std::filesystem::path current_path_;
+    const std::string path_ = "../output/";
+    std::filesystem::path write_path_;
+    std::filesystem::path read_path_;
+    std::ifstream read_file_;
 };
 
 #endif //STORAGE

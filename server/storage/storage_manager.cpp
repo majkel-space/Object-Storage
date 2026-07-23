@@ -11,7 +11,7 @@ void StorageManager::Execute(Request& request)
             storage.List(request.path);
             break;
         case Operation::Get:
-            storage.Get(request.path);
+            storage.Get(request.path, status_);
             break;
         case Operation::Put:
             storage.Put(request.path, request.content_length, request.body, status_);
@@ -22,6 +22,14 @@ void StorageManager::Execute(Request& request)
     }
     if (status_ == StorageStatus::Complete)
         operation_ = Operation::None;
+}
+
+std::size_t StorageManager::Read(Request& request, std::span<char> read_buffer)
+{
+    std::size_t bytes = storage.GetChunk(request.path, read_buffer, status_);
+    if (bytes == 0)
+        status_ = StorageStatus::Complete;
+    return bytes;
 }
 
 void StorageManager::Append(Request& request, std::span<const char> data)

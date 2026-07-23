@@ -28,7 +28,6 @@ void Server::StartAccept()
             {
                 //separate connetion handler for each conecting client
                 auto connection = std::make_shared<ConnectionHandler>(std::move(*socket), storage_manager_);
-                //TODO pass storageManager instance
                 connection->Start();
             }
             if (!stop_)

@@ -21,6 +21,7 @@ class StorageManager
 
     void Execute(Request&);
     void Append(Request&, std::span<const char>);
+    std::size_t Read(Request&, std::span<char>);
     StorageStatus GetStatus() const { return status_; }
 
   private:

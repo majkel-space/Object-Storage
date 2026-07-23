@@ -25,6 +25,8 @@ class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler>
 
     tcpip::socket socket_;
     std::array<char, 1024> data_; //no new allocation, every read use the same memory
+    std::array<char, 1024> write_data_;
     std::unique_ptr<IParser> parser_{nullptr};
     std::shared_ptr<StorageManager> storage_manager_;
+    std::size_t bytes_recieved_;
 };

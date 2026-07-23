@@ -23,9 +23,8 @@ void ConnectionHandler::DoRead()
 
 void ConnectionHandler::DoWrite()
 {
-    std::string message_ = "DoWrite\n";
     socket_.async_write_some(
-        boost::asio::buffer(message_),
+        boost::asio::buffer(write_data_, bytes_recieved_),
         boost::bind(&ConnectionHandler::HandleWrite,
                 shared_from_this(),
                 boost::asio::placeholders::error,
@@ -64,20 +63,20 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
                 if (storage_status == StorageStatus::NotStarted ||
                     storage_status == StorageStatus::Complete) {
                         storage_manager_->Execute(request);
-                        // storage_manager_->Append(request, std::span<const char>(data_.data(), bytes_transferred));
-                    }
-                //TODO check error status from StorageManager
+                }
                 else if (storage_status == StorageStatus::Receiving){
                     storage_manager_->Append(request, std::span<const char>(data_.data(), bytes_transferred));
                 }
-                // parser_.reset(); //TODO reset only if full content will be send
+                else if(storage_status == StorageStatus::Sending) {
+                    HandleWrite(error, bytes_transferred);
+                }
             }
             else if (status == ParseStatus::Error) {
                 //TODO close connection?
                 parser_.reset();
             }
         }
-        DoWrite();
+        DoRead();
     }
     else
     {
@@ -90,7 +89,31 @@ void ConnectionHandler::HandleWrite(const boost::system::error_code& error, size
 {
     if (!error)
     {
-        DoRead();
+        if (parser_ != nullptr)
+        {
+            const auto parser_status = parser_->GetParseStatus();
+            const auto storage_status = storage_manager_->GetStatus();
+            Request& request = parser_->GetRequest();
+            if (storage_status == StorageStatus::NotStarted) {
+                storage_manager_->Execute(request);
+            }
+            else if (storage_status == StorageStatus::Sending ){
+                bytes_recieved_ = storage_manager_->Read(request, write_data_);
+                for (const auto it: write_data_)
+                    std::cout << it;
+                std::cout << " size " << write_data_.size() << " bytes " << (int)bytes_recieved_ << std::endl;
+            }
+            else if (storage_status == StorageStatus::Complete) {
+                boost::system::error_code ec;
+                socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+                socket_.close(ec);
+                return;
+            }
+            else if (storage_status == StorageStatus::Receiving) {
+                HandleRead(error, bytes_transferred);
+            }
+            DoWrite();
+        }
     }
     else
     {

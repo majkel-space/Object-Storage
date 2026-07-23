@@ -5,7 +5,7 @@
 namespace
 {
     const std::vector<std::string> http_msg_chunks {
-        "PUT aaa HT",
+        "GET aaa HT",
         "TP/1.1\r\n",
         "Host: localhost\r\n",
         "User-Agent: TestClient\r\n",
@@ -42,10 +42,10 @@ class Client
 
     void Connect();
     void SendMessage();
+    void GetResponse();
 
   private:
     void GenerateMessage();
-    void GetResponse();
 
     int id_;
     std::vector<std::string> msg_chunks_;

@@ -30,7 +30,7 @@ void Client::GenerateMessage()
         boost::asio::write(socket_, boost::asio::buffer(chunk), error_ );
         if(!error_ )
         {
-            std::cout << "Client " << id_ << " sent chunk: " << chunk << '\n';
+            std::cout << "Client " << id_ << " sent chunk: " << chunk;
         }
         else
         {
@@ -44,16 +44,19 @@ void Client::GenerateMessage()
 void Client::GetResponse()
 {
     boost::asio::streambuf receive_buffer;
-    std::size_t bytes_transferred = boost::asio::read_until(socket_, receive_buffer, '\n', error_);
-
+    // std::size_t bytes_transferred = boost::asio::read_until(socket_, receive_buffer, '\n', error_);
+    std::size_t bytes_transferred = boost::asio::read(socket_, receive_buffer, error_);
+    std::cout << "CLIENT GetResponse\n";
     if (error_ && error_ != boost::asio::error::eof)
     {
         std::cout << "receive failed: " << error_.message() << std::endl;
     }
     else
     {
+        std::cout << "CLIENT recieve\n";
         const char* data = boost::asio::buffer_cast<const char*>(receive_buffer.data());
         std::cout.write(data, bytes_transferred);
         std::cout << '\n';
+        receive_buffer.consume(bytes_transferred);
     }
 }
