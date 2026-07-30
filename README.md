@@ -17,7 +17,7 @@ Program is build with CMake file system, to run it:
     GET / HTTP/1.1
     Host: localhost
 
-Program has implemented SIGINT interuption.
+Program has implemented SIGINT interruption.
 To stop hit 'Ctrl+C' in both terminal windows.
 
 
@@ -26,31 +26,31 @@ To stop hit 'Ctrl+C' in both terminal windows.
 Complete steps up to 5 from TO RUN chapter
 ctest --verbose
 
-Test tries to cover diffrenc scenarios:
+Test tries to cover difference scenarios:
 1. Test_HttpPut
     covers PUT method from HTTP, data is send as a one stream, or as a chunks
 2. Test_RespChunkPutAndPutX
-    covers Resp SET and SETXN, if file with SETXN was not created recieve an error msg with information about
+    covers Resp SET and SETXN, if file with SETXN was not created receive an error msg with information about
     not created object
 3. Test_HttpAndRespGet_NoObject
-    covers GET when object does not exist in Storage, recieve msg object do not exist.
+    covers GET when object does not exist in Storage, receive msg object do not exist.
 4. Recieve list of objects in storage from HTTP List or KEYS * from RESP
 5. Test_HttpAndRespCrossGet
     covers HTTP and RESP PUT/SET and after creation GET trhough other protocol
 6. Test_HttpAndRespPutBigObjectToStorage
     covers 2 functionalities, PUT/SET of two big object to the storage with async send mechanism
-    !! importent notice to make it work follow TODO instruction from test.
+    !! important notice to make it work follow TODO instruction from test.
 
 ---
 
 ## Server description
 
-Main in server creates io_service, connect it with SIGINT and in async_wait waits for potential interuption signal.
+Main in server creates io_service, connect it with SIGINT and in async_wait waits for potential interruption signal.
 
 Server holds its own TCP IP acceptor.
 When constructed creates a shared_ptr<tcpip::socket> with acceptor as an argument.
 shared_ptr as its counter is incremented when passing it to ConnectionHandler and it has to stay alive during entire connection.
-Acceptor starts async_accept with labmda trigering ConnectionHandler.
+Acceptor starts async_accept with lambda triggering ConnectionHandler.
 ConectionHandler in constant loop calls DoRead, DoWrite with use of async_read_some and async_write_some.
 In here we are creating another incrementation of socket shared_ptr.
 
@@ -58,7 +58,7 @@ In here we are creating another incrementation of socket shared_ptr.
 ## ConnectionHandler
 
 One ConnectionHandler serve one connection. So they can keep information about one request trough it entire handle of the request.
-This approach prevent mixing read of header or transfer content, while handling concurent multiple cals.
+This approach prevent mixing read of header or transfer content, while handling concurrent multiple cals.
 Handle every each separate client, gets a shared_ptr to the storage manager from server.
 Hold pointer to the IParser.
 ConnectionHandler pass header of msg to Parser to retrieve basic information how to handle each connection.
@@ -68,14 +68,14 @@ When it ends it sends
 boost::asio::ip::tcp::socket::shutdown_receive
 boost::asio::ip::tcp::socket::shutdown_send
 base on the type of operation.
-I decided to not keep connection still alive, but just wait for ncoming transmision, then CH is recreated, with clear buffer.
+I decided to not keep connection still alive, but just wait for oncoming transmission, then CH is recreated, with clear buffer.
 
 
 ## Protocol parsers
 
 Protocol parsers are inheriting from IParser, so approach is extensible for another protocols.
-There are 2 protocols HTTP and RESP, both classes responible for parsing headers of incoming msgs.
-Responsibility of parsers is to catch method/type of the request and path of the object, content lenght of the HTTP msg, content length of Resp argument,
+There are 2 protocols HTTP and RESP, both classes responsible for parsing headers of incoming msgs.
+Responsibility of parsers is to catch method/type of the request and path of the object, content length of the HTTP msg, content length of Resp argument,
 and base on that read data creates a request.
 
 Protocols are inheriting from IParser, which have common methods, called from ConnectionHandler.
@@ -87,16 +87,16 @@ Hold information parsed by protocol parser.
 Contain:
 Statuses with information about header parse, type of the request and status of content handling.
 File handle: ifstream and ofstream
-String Final response (it can be strin as final response is short - just status, succes, error with file path)
+String Final response (it can be string as final response is short - just status, success, error with file path)
 
 
 ## StorageManager
 
-One instace shared through multiple ConnectionHandlers. That is why it deos not hold any status of msg parsing,
+One instace shared through multiple ConnectionHandlers. That is why it does not hold any status of msg parsing,
 it just transfer request reference so it can be updated while content is parsed inside Storage.
-Detect operation to perfomr by Storage, detect it base on the Request, created out of msg header.
+Detect operation to perform by Storage, detect it base on the Request, created out of msg header.
 Base on detected operation and StorageStatusdirect the traffic between ConnectionHandler and Storage.
-Transfer of data chunks are transfered by span<char> to not allocate data into memory.
+Transfer of data chunks are transferred by span<char> to not allocate data into memory.
 
 
 ## Storage
@@ -107,7 +107,7 @@ Base on actions like errors, end of operation save data or read data set request
 base on which CH take the decision what should do, continue read/write, or send final response to the client.
 When new object is being created in storage it is saved with ".tmp" suffix, so no new request can read from it.
 After transfer is finalized sufix is being removed.
-All Storage operations works on span<char> to not alocate aditional memory.
+All Storage operations works on span<char> to not allocate additional memory.
 
 
 ## Client desciption
@@ -120,34 +120,11 @@ Read method with use of boost::asio::read to read data, it is waiting for EOF ms
 
 ## Error handling
 
-Errors when occure are catched and saved to request final_response.
-When error catched ConnectionHandler generate response to client and send EOF with shutdown recieve or write.
+Errors when occur are catched and saved to request final_response.
+When error catched ConnectionHandler generate response to client and send EOF with shutdown receive or write.
 After that connection is closed
 
 
-## Implementation
+## Class diagram
+<img width="1460" height="1582" alt="ObjectStorage_Server_v3" src="https://github.com/user-attachments/assets/240f1ba2-8dda-4d82-934b-629c9ece8c39" />
 
-1. Client Server connection and msg transfer
-2. Http Parser to read header
-3. Resp parser to read bulks and common IParser.
-4. StorageManager to detect method type
-5. Storate method by method: PUT/SET, SETNX, GET / and KEYS *, GET.
-6. Integration test (Uncle Bob wouldn't be happy with that approach)
-
-With every step I tried to keep client server connection working, but at the end when I've started UT then errors where catched.
-Mainly they were bad file descriptor, caused by connection close whem there were stilldata to send, or read in buffer, or incoming transfer.
-That is why I've implemented shutdown_send or write first and after that when final response was send to client, than
-
-
-## What I would do next
-
-Small upgread of storage, like retray while fail of open file
-Storage limitation - StorageManager would need to keep Storage size
-    recalculate its size base on method PUT/SET and if implemented DELETE and request contetn size
-    then there would be 2 options, reject new income, or keep queue with paths and delete oldest (till there would be enough space for new object)
-Standarisation of errors with enum of error types
-DELETE command
-other bonus points described in objstore-task-v2.md
-
-
-<image src = "../ObjectStorage_Server_v3.png" alt="Class diagram">
