@@ -70,3 +70,6 @@ Testing/
 
 # Created objects
 output/
+
+#Test utility files
+tests/utility/

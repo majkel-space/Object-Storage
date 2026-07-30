@@ -14,7 +14,7 @@ void ConnectionHandler::Start()
 void ConnectionHandler::DoRead()
 {
     socket_.async_read_some(
-        boost::asio::buffer(data_),
+        boost::asio::buffer(read_data_),
         boost::bind(&ConnectionHandler::HandleRead,
                 shared_from_this(),
                 boost::asio::placeholders::error,
@@ -23,21 +23,35 @@ void ConnectionHandler::DoRead()
 
 void ConnectionHandler::DoWrite()
 {
-    socket_.async_write_some(
+    boost::asio::async_write(
+        socket_,
         boost::asio::buffer(write_data_, bytes_recieved_),
         boost::bind(&ConnectionHandler::HandleWrite,
-                shared_from_this(),
-                boost::asio::placeholders::error,
-                boost::asio::placeholders::bytes_transferred));
+            shared_from_this(),
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
+}
+
+void ConnectionHandler::HandleWriteCompletion(
+    const boost::system::error_code& error, size_t bytes_transferred, const std::string& response)
+{
+    closing_response_ = response;
+    boost::asio::async_write(
+        socket_,
+        boost::asio::buffer(closing_response_),
+        boost::bind(&ConnectionHandler::HandleWrite,
+            shared_from_this(),
+            boost::asio::placeholders::error,
+            boost::asio::placeholders::bytes_transferred));
 }
 
 void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_t bytes_transferred)
 {
     if (!error)
     {
-        std::string_view msg(data_.data(), bytes_transferred);
         if (!parser_)
         {
+            std::string_view msg(read_data_.data(), bytes_transferred);
             const Protocol protocol = DetectProtocol(msg);
             switch (protocol)
             {
@@ -53,35 +67,39 @@ void ConnectionHandler::HandleRead(const boost::system::error_code& error, size_
         if (parser_ != nullptr)
         {
             auto status = parser_->GetParseStatus();
-            if (status != ParseStatus::Complete and status != ParseStatus::Error) {
+            if (status != HeaderParseStatus::Complete and status != HeaderParseStatus::Error) {
+                std::string msg(read_data_.data(), bytes_transferred);
                 parser_->Parse(msg);
                 status = parser_->GetParseStatus();
             }
-            if (status == ParseStatus::Complete) {
+            if (status == HeaderParseStatus::Complete) {
                 Request& request = parser_->GetRequest();
-                StorageStatus storage_status = storage_manager_->GetStatus();
-                if (storage_status == StorageStatus::NotStarted ||
-                    storage_status == StorageStatus::Complete) {
-                        storage_manager_->Execute(request);
+                MessageStatus& storage_status = request.msg_status;
+                if (storage_status == MessageStatus::NotStarted) {
+                    storage_manager_->Execute(request);
                 }
-                else if (storage_status == StorageStatus::Receiving){
-                    storage_manager_->Append(request, std::span<const char>(data_.data(), bytes_transferred));
+                else if (storage_status == MessageStatus::Receiving){
+                    storage_manager_->Append(request, std::span<const char>(read_data_.data(), bytes_transferred));
                 }
-                else if(storage_status == StorageStatus::Sending) {
+                if(storage_status == MessageStatus::Sending) {
                     HandleWrite(error, bytes_transferred);
                 }
+                //Message Error also generate final_reponse_
+                if (storage_status == MessageStatus::FinalResponse || storage_status == MessageStatus::Error) {
+                    GenerateFinalResponse(request);
+                }
+                if (storage_status == MessageStatus::Complete) {
+                    boost::system::error_code ec;
+                    socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_receive, ec);
+                }
             }
-            else if (status == ParseStatus::Error) {
-                //TODO close connection?
-                parser_.reset();
-            }
+            DoRead();
         }
-        DoRead();
     }
     else
     {
-        std::cerr << "error: " << error.message() << std::endl;
-        socket_.close();
+        boost::system::error_code ec;
+        socket_.close(ec);
     }
 }
 
@@ -91,33 +109,44 @@ void ConnectionHandler::HandleWrite(const boost::system::error_code& error, size
     {
         if (parser_ != nullptr)
         {
-            const auto parser_status = parser_->GetParseStatus();
-            const auto storage_status = storage_manager_->GetStatus();
             Request& request = parser_->GetRequest();
-            if (storage_status == StorageStatus::NotStarted) {
+            const auto parser_status = parser_->GetParseStatus();
+            auto& storage_status = request.msg_status;
+            if (storage_status == MessageStatus::NotStarted) {
                 storage_manager_->Execute(request);
             }
-            else if (storage_status == StorageStatus::Sending ){
+            else if (request.operation == Operation::List && request.msg_status == MessageStatus::Sending) {
+                storage_status = MessageStatus::FinalResponse;
+                HandleWriteCompletion(error, request.final_response.size(), request.final_response);
+            }
+            else if (storage_status == MessageStatus::Sending ){
                 bytes_recieved_ = storage_manager_->Read(request, write_data_);
-                for (const auto it: write_data_)
-                    std::cout << it;
-                std::cout << " size " << write_data_.size() << " bytes " << (int)bytes_recieved_ << std::endl;
             }
-            else if (storage_status == StorageStatus::Complete) {
-                boost::system::error_code ec;
-                socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
-                socket_.close(ec);
-                return;
-            }
-            else if (storage_status == StorageStatus::Receiving) {
+            else if (storage_status == MessageStatus::Receiving) {
                 HandleRead(error, bytes_transferred);
             }
-            DoWrite();
+            if (storage_status == MessageStatus::FinalResponse || storage_status == MessageStatus::Error) {
+                GenerateFinalResponse(request);
+            }
+
+            if (storage_status == MessageStatus::Complete) {
+                boost::system::error_code ec;
+                socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+            }
+            else
+                DoWrite();
         }
     }
     else
     {
-        std::cerr << "error: " << error.message() << std::endl;
-        socket_.close();
+        boost::system::error_code ec;
+        socket_.close(ec);
     }
+}
+
+void ConnectionHandler::GenerateFinalResponse(Request& request)
+{
+    boost::system::error_code ec;
+    boost::asio::write(socket_, boost::asio::buffer(request.final_response), ec);
+    request.msg_status = MessageStatus::Complete;
 }

@@ -1,199 +1,225 @@
 #include <iostream>
 #include "storage.hpp"
 
-void Storage::Get(const std::string path, StorageStatus& status)
+Storage::Storage(const std::string path) : path_{path} {}
+
+void Storage::Get(Request& request)
 {
-    const std::filesystem::path full_path = std::filesystem::path(path_) / path;
-    if (status == StorageStatus::NotStarted)
+    request.path = std::filesystem::path(path_ + request.path_str);
+    if (request.msg_status == MessageStatus::NotStarted)
     {
-        if (!std::filesystem::exists(full_path) || std::filesystem::is_directory(full_path))
+        request.msg_status = MessageStatus::Sending;
+        if (!std::filesystem::exists(request.path) || std::filesystem::is_directory(request.path))
         {
-            status = StorageStatus::Error;
+            request.final_response = "Error: Object " + request.path.string() + " does not exist in Storage\n";
+            request.msg_status = MessageStatus::Error;
             return;
         }
 
-        if (read_file_.is_open())
+        if (request.path.extension() == ".tmp")
         {
-            read_file_.close();
-        }
-
-        read_file_.open(full_path, std::ios::binary);
-        if (!read_file_.is_open())
-        {
-            status = StorageStatus::Error;
+            request.final_response = "Error: Object " + request.path.string() + " is temporary. Can't download temporary object\n";
             return;
         }
 
-        read_path_ = full_path;
-        status = StorageStatus::Sending;
+        if (request.read_file.is_open())
+        {
+            request.read_file.close();
+        }
+
+        request.read_file.open(request.path, std::ios::binary);
+        if (!request.read_file.is_open())
+        {
+            request.final_response = "Storage GET ErrorOpening\n";
+            return;
+        }
     }
 }
 
-std::size_t Storage::GetChunk(const std::string& path, std::span<char> read_buffer, StorageStatus& status)
+std::size_t Storage::GetChunk(Request& request, std::span<char> read_buffer)
 {
-    const std::filesystem::path full_path = std::filesystem::path(path_) / path;
-    if (status == StorageStatus::NotStarted)
-        Get(path, status);
+    const std::filesystem::path full_path = std::filesystem::path(path_ + request.path_str);
+    if (request.msg_status == MessageStatus::NotStarted)
+        Get(request);
 
-    if (status != StorageStatus::Sending || full_path != read_path_)
+    if (request.msg_status != MessageStatus::Sending || full_path != request.path)
     {
-        std::cout << "Error PATH MISMATCH\n";
-        status = StorageStatus::Error;
+        request.final_response = "Error path mismatch req path " + request.path.string() + " chunk path " + full_path.string() + "\n";
+        request.msg_status = MessageStatus::Error;
         return 0;
     }
 
-    read_file_.read(read_buffer.data(), static_cast<std::streamsize>(read_buffer.size()));
-    const std::size_t bytes_read = static_cast<std::size_t>(read_file_.gcount());
+    request.read_file.read(read_buffer.data(), static_cast<std::streamsize>(read_buffer.size()));
+    const std::size_t bytes_read = static_cast<std::size_t>(request.read_file.gcount());
 
-    if (read_file_.bad())
+    if (request.read_file.bad())
     {
-        read_file_.close();
-        read_path_.clear();
-        status = StorageStatus::Error;
+        request.read_file.close();
+        request.path.clear();
+        request.final_response = "ifstream bad() Error\n";
+        request.msg_status = MessageStatus::Error;
         return 0;
     }
 
     if (bytes_read == 0)
     {
-        read_file_.close();
-        read_path_.clear();
-        status = StorageStatus::Complete;
+        request.final_response = "Object " + request.path.string() + " downloaded from Storage\n";
+        request.read_file.close();
+        request.path.clear();
+        request.msg_status = MessageStatus::FinalResponse;
         return 0;
     }
 
-    if (read_file_.eof() || read_file_.peek() == std::char_traits<char>::eof())
+    if (request.read_file.eof() || request.read_file.peek() == std::char_traits<char>::eof())
     {
-        read_file_.close();
-        read_path_.clear();
-        status = StorageStatus::Complete;
-        std::cout << "GET Complete\n";
+        request.final_response = "Object " + request.path.string() + " downloaded from Storage\n";
+        request.read_file.close();
+        request.path.clear();
+        request.msg_status = MessageStatus::FinalResponse;
     }
 
     return bytes_read;
 }
 
-void Storage::Put(const std::string& path, std::size_t& content_length, std::span<const char> data, StorageStatus& status)
+void Storage::Put(Request& request, std::span<const char> data)
 {
-    Write(path, content_length, data, status, OpenMode::Overwrite);
+    Write(request, data, OpenMode::Overwrite);
 }
 
-
-void Storage::PutIfNonExist(const std::string& path, std::size_t& content_length, std::span<const char> data, StorageStatus& status)
+void Storage::PutIfNonExist(Request& request, std::span<const char> data)
 {
-    Write(path, content_length, data, status, OpenMode::CreateOnly);
+    Write(request, data, OpenMode::CreateOnly);
 }
 
-void Storage::List(const std::string path) const
+void Storage::List(Request& request) const
 {
-    std::filesystem::path p = (path == "*" or path == "/")
+    request.operation = Operation::List;
+    request.msg_status = MessageStatus::Sending;
+    request.path = (request.path_str == "*" or request.path_str == "/")
     ? std::filesystem::path(path_)
-    : std::filesystem::path(path_ + path);
-    if (std::filesystem::is_directory(p) && std::filesystem::exists(p))
+    : std::filesystem::path(path_ + request.path_str);
+
+    if (std::filesystem::is_directory(request.path ) && std::filesystem::exists(request.path))
     {
-        std::cout << "list of objects in storage:\n";
-        for (const auto& it: std::filesystem::recursive_directory_iterator(p))
+        std::ostringstream out;
+        for (const auto& it: std::filesystem::recursive_directory_iterator(request.path))
         {
-            std::cout << it.path() << std::endl;
+            out << it.path().lexically_relative(request.path).string() << '\n';
         }
+        request.final_response = out.str();
     }
+    request.msg_status == MessageStatus::FinalResponse;
 }
 
-bool Storage::StartWrite(const std::filesystem::path& full_path,
-                         StorageStatus& status,
+bool Storage::StartWrite(Request& request,
                          OpenMode open_mode)
 {
-    if (status == StorageStatus::NotStarted)
+    if (request.msg_status == MessageStatus::NotStarted)
     {
-        std::filesystem::create_directories(full_path.parent_path());
+        std::filesystem::create_directories(request.path.parent_path());
 
-        if (open_mode == OpenMode::CreateOnly && std::filesystem::exists(full_path))
+        if (open_mode == OpenMode::CreateOnly && std::filesystem::exists(request.path))
         {
-            std::cout << "Object " << full_path << " already exists. New object was not saved\n";
-            status = StorageStatus::Error;
+            request.final_response = "Object " + request.path.string() + " already exists. New object was not saved\n";
+            request.msg_status = MessageStatus::Error;
             return false;
         }
 
-        file_.open(full_path, std::ios::binary | std::ios::trunc);
-        if (!file_.is_open())
+        request.tmp_path = request.path;
+        request.tmp_path += ".tmp";
+        request.write_file.open(request.tmp_path, std::ios::binary | std::ios::trunc);
+        if (!request.write_file.is_open())
         {
-            status = StorageStatus::Error;
+            request.final_response = "Can't opent file " + request.path.string() + "\n";
+            request.msg_status = MessageStatus::Error;
             return false;
         }
 
-        write_path_ = full_path;
-        status = StorageStatus::Receiving;
+        request.msg_status = MessageStatus::Receiving;
         return true;
     }
 
-    if (status != StorageStatus::Receiving || full_path != write_path_)
+    if (request.msg_status != MessageStatus::Receiving)
     {
-        std::cout << "Error: path mismatch full " << full_path << " curr " << write_path_ << std::endl;
-        status = StorageStatus::Error;
+        request.final_response = "Error: Wrong Messsage Status while reading\n";
+        request.msg_status = MessageStatus::Error;
         return false;
     }
 
     return true;
 }
 
-void Storage::FinishWithError(StorageStatus& status)
+void Storage::FinishWithError(Request& request)
 {
-    if (file_.is_open())
+    if (request.write_file.is_open())
+        request.write_file.close();
+
+    if (!request.tmp_path.empty())
     {
-        file_.close();
+        std::error_code ec;
+        std::filesystem::remove(request.tmp_path, ec);
     }
-    write_path_.clear();
-    status = StorageStatus::Error;
+
+    request.path.clear();
+    request.tmp_path.clear();
+    request.final_response = "Path " + request.tmp_path.string() + " emtpy\n";
+    request.msg_status = MessageStatus::Error;
 }
 
-void Storage::FinishComplete(StorageStatus& status, const std::string_view message)
+void Storage::FinishComplete(Request& request, const std::string_view message)
 {
-    file_.flush();
-    file_.close();
-    write_path_.clear();
-    std::cout << message << '\n';
-    status = StorageStatus::Complete;
+    request.write_file.flush();
+    request.write_file.close();
+    std::error_code ec;
+    std::filesystem::rename(request.tmp_path, request.path, ec);
+
+    if (ec)
+    {
+        std::filesystem::remove(request.tmp_path);
+        request.msg_status = MessageStatus::Error;
+    }
+    else
+        request.msg_status = MessageStatus::FinalResponse;
+
+    request.final_response = "Object " + request.path.string() + " created in Storage\n";
+
+    request.path.clear();
+    request.tmp_path.clear();
 }
 
-void Storage::Write(const std::string& path,
-               std::size_t& content_length,
+void Storage::Write(Request& request,
                std::span<const char> data,
-               StorageStatus& status,
                OpenMode open_mode)
 {
-    const std::filesystem::path full_path = std::filesystem::path(path_) / path;
-    std::cout << "Write Path " << path << std::endl;
-    if (content_length < data.size())
+    request.path = std::filesystem::path(path_ + request.path_str);
+    if (request.content_length < data.size())
     {
-        std::cout << "Content length Error content " << content_length << " data " << (int)data.size() << std::endl;;
-        FinishWithError(status);
+        FinishWithError(request);
         return;
     }
 
-    if (!StartWrite(full_path, status, open_mode))
+    if (!StartWrite(request, open_mode))
     {
-        std::cout << "Not Start Error\n";
         return;
     }
 
     if (!data.empty())
     {
-        std::cout << "Data empty Error\n";
-        file_.write(data.data(), static_cast<std::streamsize>(data.size()));
+        request.write_file.write(data.data(), static_cast<std::streamsize>(data.size()));
     }
 
-    if (!file_)
+    if (!request.write_file)
     {
-        std::cout << "Not file Error\n";
-        FinishWithError(status);
+        request.final_response = "Not file Error\n";
+        FinishWithError(request);
         return;
     }
 
-    content_length -= data.size();
+    request.content_length -= data.size();
 
-    if (content_length == 0)
+    if (request.content_length == 0)
     {
-        std::cout << "Write finish\n";
-        FinishComplete(status, open_mode == OpenMode::Overwrite
+        FinishComplete(request, open_mode == OpenMode::Overwrite
             ? "PUT complete"
             : "PUT_IF_NON_EXIST complete");
     }

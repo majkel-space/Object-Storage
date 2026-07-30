@@ -3,12 +3,6 @@
 
 using tcpip = boost::asio::ip::tcp;
 
-Server::Server(boost::asio::io_service& io_service) : acceptor_(io_service, tcpip::endpoint(tcpip::v4(), 1234))
-{
-    storage_manager_ = std::make_shared<StorageManager>();
-    StartAccept();
-}
-
 void Server::StopServer()
 {
     stop_ = true;

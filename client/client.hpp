@@ -2,21 +2,21 @@
 #include <iostream>
 #include <string>
 
-namespace
+namespace ClientMsgs
 {
     const std::vector<std::string> http_msg_chunks {
-        "GET aaa HT",
+        "GET / HT",
         "TP/1.1\r\n",
         "Host: localhost\r\n",
         "User-Agent: TestClient\r\n",
         "Accept: */*\r\n",
-        "Content-Length: 17\r\n",
+        "Content-Length: 16\r\n",
         "\r\n+++",
-        "Hello world",
+        "Hello http",
         "!!!"
     };
 
-    const std::vector<std::string> resp_msg_chunks {
+    const std::vector<std::string> resp_set_msg_chunks {
         "*3\r\n",
         "$5\r\n",
         "SETNX\r\n",
@@ -32,23 +32,27 @@ namespace
         "UNKNOWN ",
         "DATA\r\n"
     };
-} //namespace
+} //namespace ClientMsgs
 
 class Client
 {
     using tcpip = boost::asio::ip::tcp;
   public:
-    Client (boost::asio::io_context&, const int);
+    Client (boost::asio::io_context&, const int, std::string host, std::uint16_t);
 
     void Connect();
-    void SendMessage();
-    void GetResponse();
+    void SendMessage(const std::vector<std::string>&);
+    void SendMessage(const std::string);
+    void SendObject(const std::string path);
+    void PrintResponse();
+    std::string GetResponse();
+    void CloseConnection();
 
   private:
-    void GenerateMessage();
-
     int id_;
-    std::vector<std::string> msg_chunks_;
+    std::string write_buffer_;
     tcpip::socket socket_;
+    std::string host_;
+    std::uint16_t port_;
     boost::system::error_code error_;
 };

@@ -8,11 +8,11 @@ void HttpParser::Parse(const std::string_view data)
     buffer_.append(data);
     if (CheckIfHeaderNotComplete())
     {
-        parse_status_ = ParseStatus::InProgress;
+        parse_status_ = HeaderParseStatus::InProgress;
         return;
     }
     CreateHttpRequest();
-    parse_status_ = ParseStatus::Complete;
+    parse_status_ = HeaderParseStatus::Complete;
 }
 
 bool HttpParser::CheckIfHeaderNotComplete()
@@ -36,7 +36,7 @@ void HttpParser::CreateHttpRequest()
     {
         std::istringstream iss(line);
         iss >> request_.method;
-        iss >> request_.path;
+        iss >> request_.path_str;
         iss >> request_.version;
     }
 
@@ -86,17 +86,13 @@ void HttpParser::CreateHttpRequest()
 
     buffer_.erase(0, cursor);
     request_.body = {std::make_move_iterator(buffer_.begin()), std::make_move_iterator(buffer_.end())};
-    // std::cout << "PARSER body ";
-    // for (const auto& it: request_.body)
-    //     std::cout << it;
-    // std::cout << std::endl;
     buffer_.clear();
 }
 
 void HttpParser::ClearRequest()
 {
     request_.method.clear();
-    request_.path.clear();
+    request_.path_str.clear();
     request_.version.clear();
     request_.content_length = 0;
     request_.body.clear();

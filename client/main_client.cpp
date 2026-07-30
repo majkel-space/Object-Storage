@@ -22,7 +22,7 @@ int main()
     //     clients.push_back(client);
     // }
 
-    auto client = std::make_shared<Client>(io_context, static_cast<int>(1));
+    auto client = std::make_shared<Client>(io_context, static_cast<int>(1), "127.0.0.1", 1234U);
     client->Connect();
 
     boost::asio::steady_timer timer(io_context);
@@ -31,11 +31,7 @@ int main()
     // send_loop = [&timer, &clients, &send_loop]()
     // send_loop = [&timer, &client, &send_loop]()
     // {
-    //     // for (auto& client : clients)
-    //     // {
-    //     //     client->SendMessage();
-    //     // }
-    //     client->SendMessage();
+    //     client->SendMessage(ClientMsgs::http_msg_chunks);
 
     //     timer.expires_after(std::chrono::seconds(1));
     //     timer.async_wait(
@@ -46,8 +42,8 @@ int main()
     // };
 
     // send_loop();
-    client->SendMessage();
-    client->GetResponse();
+    client->SendMessage(ClientMsgs::http_msg_chunks);
+    client->PrintResponse();
     io_context.run();
 
     return 0;

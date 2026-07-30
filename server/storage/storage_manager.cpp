@@ -1,47 +1,46 @@
 #include <iostream>
 #include "storage_manager.hpp"
 
+StorageManager::StorageManager(const std::string storage_path) : storage_{storage_path} {}
+
+
 void StorageManager::Execute(Request& request)
 {
-    if (operation_ == Operation::None)
-        operation_  = GetOperation(request.method, request.path);
-    switch (operation_)
+    if (request.operation == Operation::None)
+        request.operation  = GetOperation(request.method, request.path_str);
+    switch (request.operation)
     {
         case Operation::List:
-            storage.List(request.path);
+            storage_.List(request);
             break;
         case Operation::Get:
-            storage.Get(request.path, status_);
+            storage_.Get(request);
             break;
         case Operation::Put:
-            storage.Put(request.path, request.content_length, request.body, status_);
+            storage_.Put(request, request.body);
             break;
         case Operation::PutX:
-            storage.PutIfNonExist(request.path, request.content_length, request.body, status_);
+            storage_.PutIfNonExist(request, request.body);
             break;
     }
-    if (status_ == StorageStatus::Complete)
-        operation_ = Operation::None;
+    if (request.msg_status == MessageStatus::FinalResponse)
+        request.operation = Operation::None;
 }
 
 std::size_t StorageManager::Read(Request& request, std::span<char> read_buffer)
 {
-    std::size_t bytes = storage.GetChunk(request.path, read_buffer, status_);
+    std::size_t bytes = storage_.GetChunk(request, read_buffer);
     if (bytes == 0)
-        status_ = StorageStatus::Complete;
+        request.msg_status = MessageStatus::FinalResponse;
     return bytes;
 }
 
 void StorageManager::Append(Request& request, std::span<const char> data)
 {
-    std::cout << "APPEND path " << request.path << " leng " << request.content_length << std::endl;
-    for (const auto& it: data)
-        std::cout << it;
-    std::cout << std::endl;
-    storage.Put(request.path, request.content_length, data, status_);
+    storage_.Put(request, data);
 }
 
-StorageManager::Operation StorageManager::GetOperation(const std::string_view method, const std::string_view path)
+Operation StorageManager::GetOperation(const std::string_view method, const std::string_view path)
 {
     if (method == "GET")
     {
@@ -52,7 +51,7 @@ StorageManager::Operation StorageManager::GetOperation(const std::string_view me
     }
     else if (method == "KEYS")
         return Operation::List;
-    else if (method == "PUT")
+    else if (method == "PUT" or method == "SET")
         return Operation::Put;
     else if (method == "SETNX")
         return Operation::PutX;
